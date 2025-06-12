@@ -1,0 +1,155 @@
+-- Crear la base de datos
+CREATE DATABASE ecommerce;
+
+-- Conectarse a la base
+\c ecommerce;
+
+-- Tabla de usuarios
+CREATE TABLE usuarios (
+    id_usuario SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    correo_electronico VARCHAR(100) UNIQUE NOT NULL,
+    contraseña_hash VARCHAR(255) NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    direccion_envio TEXT NOT NULL,
+    tipo_usuario VARCHAR(10) CHECK (tipo_usuario IN ('cliente', 'admin')) NOT NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de configuración de tienda (para personalización de tiendas)
+CREATE TABLE configuracion_tienda (
+    id_configuracion SERIAL PRIMARY KEY,
+    nombre_tienda VARCHAR(100),
+    logo_url TEXT,
+    tema_color VARCHAR(20),
+    mensaje_bienvenida TEXT
+);
+
+//Agregue esta parte porque cambie de lado la configuración de una cosa para el color y fuente de letra, también tiene que ser ejecutado cambio de 08/06/25
+ALTER TABLE configuracion_tienda
+ADD COLUMN color_nombre_tienda VARCHAR(20),
+ADD COLUMN fuente_nombre_tienda VARCHAR(100);
+
+-- Tabla de categorías
+CREATE TABLE categorias (
+    id_categoria SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT
+);
+
+-- Agregar categorías por defecto
+INSERT INTO categorias (nombre, descripcion) VALUES
+('General', 'Categoría por defecto para productos'),
+('Papelería', 'Artículos escolares y de oficina'),
+('Tecnología', 'Accesorios tecnológicos y gadgets');
+
+-- Tabla de productos (obligatorio id_categoria)
+CREATE TABLE productos (
+    id_producto SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    precio NUMERIC(10,2) NOT NULL,
+    stock INT NOT NULL,
+    imagen_url VARCHAR(255),
+    id_categoria INT NOT NULL REFERENCES categorias(id_categoria) ON DELETE RESTRICT
+);
+
+-- Métodos de pago
+CREATE TABLE metodos_pago (
+    id_metodo_pago SERIAL PRIMARY KEY,
+    nombre VARCHAR(100),
+    detalles TEXT
+);
+
+-- Pedidos
+CREATE TABLE pedidos (
+    id_pedido SERIAL PRIMARY KEY,
+    id_usuario INT REFERENCES usuarios(id_usuario),
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado VARCHAR(15) CHECK (estado IN ('pendiente', 'enviado', 'entregado', 'cancelado')),
+    id_metodo_pago INT REFERENCES metodos_pago(id_metodo_pago),
+    total NUMERIC(10,2)
+);
+
+//Agregue esto como un cambio a la base de datos por problemas del formulario y demás. 
+ALTER TABLE pedidos
+ADD COLUMN nombre_destinatario VARCHAR(100) NOT NULL DEFAULT 'Por definir',
+ADD COLUMN calle VARCHAR(100) NOT NULL DEFAULT 'Por definir',
+ADD COLUMN numero_casa VARCHAR(20) NOT NULL DEFAULT 'S/N',
+ADD COLUMN colonia VARCHAR(100) NOT NULL DEFAULT 'Por definir',
+ADD COLUMN codigo_postal VARCHAR(10) NOT NULL DEFAULT '00000';
+
+ALTER TABLE pedidos
+DROP CONSTRAINT pedidos_estado_check;
+
+ALTER TABLE pedidos
+ADD CONSTRAINT pedidos_estado_check
+CHECK (estado IN ('pendiente', 'procesado', 'enviado', 'entregado', 'cancelado'));
+
+
+✅ ¿Qué hiciste y por qué?
+🎯 Agregaste columnas para:
+nombre_destinatario
+
+calle
+
+numero_casa
+
+colonia
+
+codigo_postal
+
+Todas con NOT NULL y DEFAULT, lo cual:
+
+🔹 Permite que cada pedido tenga su propia dirección personalizada.
+🔹 Soluciona el problema de que un usuario pueda pedir a diferentes lugares.
+🔹 Asegura que los pedidos anteriores no generen errores, ya que usan valores por defecto.
+
+✅ ¿Por qué fue necesario?
+Porque:
+
+El formulario del checkout permite al usuario ingresar una dirección distinta cada vez.
+
+Guardar esa dirección solo en el perfil del usuario sería incorrecto (y hasta peligroso) en un sistema real.
+
+Esto te prepara para casos reales: envíos, mudanzas, regalos, múltiples direcciones por usuario.
+
+-- Detalle de pedidos
+CREATE TABLE detalle_pedido (
+    id_detalle SERIAL PRIMARY KEY,
+    id_pedido INT REFERENCES pedidos(id_pedido),
+    id_producto INT REFERENCES productos(id_producto),
+    cantidad INT,
+    precio_unitario NUMERIC(10,2)
+);
+
+-- Carrito
+CREATE TABLE carrito (
+    id_usuario INT PRIMARY KEY REFERENCES usuarios(id_usuario),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Detalle del carrito
+CREATE TABLE detalle_carrito (
+    id_usuario INT,
+    id_producto INT,
+    cantidad INT,
+    PRIMARY KEY (id_usuario, id_producto),
+    FOREIGN KEY (id_usuario) REFERENCES carrito(id_usuario),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+);
+
+-- Lista de deseos
+CREATE TABLE lista_deseos (
+    id_usuario INT PRIMARY KEY REFERENCES usuarios(id_usuario),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Detalle de lista de deseos
+CREATE TABLE detalle_lista_deseos (
+    id_usuario INT,
+    id_producto INT,
+    PRIMARY KEY (id_usuario, id_producto),
+    FOREIGN KEY (id_usuario) REFERENCES lista_deseos(id_usuario),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+);
