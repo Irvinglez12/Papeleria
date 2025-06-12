@@ -33,8 +33,16 @@ pipeline {
 
     stage('Probar contenedor') {
       steps {
+        // Elimina cualquier contenedor previo llamado test-app para evitar errores
+        bat 'docker rm -f test-app || exit 0'
+        
+        // Ejecuta el contenedor
         bat 'docker run -d -p 5000:5000 --name test-app %DOCKER_IMAGE%:%DOCKER_TAG%'
-        bat 'timeout /t 10'
+        
+        // Espera ~10 segundos con ping para evitar problema con timeout en Windows
+        bat 'ping -n 11 127.0.0.1 > nul'
+        
+        // Prueba que el contenedor responde, si no falla muestra logs y detiene pipeline
         bat 'curl -f http://localhost:5000 || (docker logs test-app && exit 1)'
       }
     }
